@@ -1,0 +1,533 @@
+---
+# tasks file for common
+- name: Adicionando repositório epel
+  yum:
+    name: epel-release
+    update_cache: yes
+    state: latest
+
+- name: Atualizando o Sistema Operacional
+  yum:
+    name: '*'
+    state: latest
+
+- name: Instalando utilitários e dependências
+  yum:
+    state: latest
+    name:
+      - "@Development tools"
+      - python-pip
+      - vim
+      - wget
+      - time
+      - csh
+      - cpp
+      - gcc-c++
+      - gcc-gfortran
+      - perl
+      - m4
+
+- name: Atualizando o pip
+  pip:
+    name: pip
+    extra_args: --upgrade
+
+- name: Instalando pacote pexpect
+  pip:
+    name: pexpect
+
+- name: Configurando o TimeZone para UTC
+  file:
+    src: /usr/share/zoneinfo/UTC
+    dest: /etc/localtime
+    state: link
+    force: yes
+
+- name: Transferindo bibliotecas necessárias para compilação do WRF
+  copy:
+    src: "{{ item }}"
+    dest: '{{ HOME }}/arquivos_tar/'
+  become: no
+  with_items:
+    - grads-2.2.1-bin-centos7.4-x86_64.tar.gz
+    - zlib-1.2.7.tar.gz
+    - jasper-1.900.1.tar.gz
+    - libpng-1.2.50.tar.gz
+    - netcdf-4.1.3.tar.gz
+    - openmpi-2.1.6.tar.gz
+    - WPSV4.0.TAR.gz
+    - WRFV4.0.TAR.gz
+    - hdf5-1.10.5.tar.gz
+
+- name: Checando existência do gfortran
+  command: 'which gfortran'
+  become: no
+
+- name: Checando existência do cpp
+  command: 'which cpp'
+  become: no
+
+- name: Checando existência do gcc
+  command: 'which gcc'
+  become: no
+
+- name: Transferindo procedimentos de testes
+  copy:
+    src: Fortran_C_tests.tar
+    dest: '{{ HOME }}/build_WRF/testes/'
+
+- name: Descompactando procedimentos de testes
+  unarchive:
+    src: '{{ HOME }}/build_WRF/testes/Fortran_C_tests.tar'
+    dest: '{{ HOME }}/build_WRF/testes/'
+    remote_src: yes
+
+- name: Executando teste 1 do compilador gfortran
+  command: gfortran TEST_1_fortran_only_fixed.f
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Checando resultado do teste 1
+  command: './a.out'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Executando teste 2 do compilador gfortran
+  command: gfortran TEST_2_fortran_only_free.f90
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Checando resultado do teste 2
+  command: './a.out'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Executando teste 3 do compilador gcc
+  command: gcc TEST_3_c_only.c
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Checando resultado do teste 3
+  command: './a.out'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Executando teste 4 1/3 do compilador gcc
+  command: gcc -c -m64 TEST_4_fortran+c_c.c
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Executando teste 4 2/3 do compilador gfortran
+  command: gfortran -c -m64 TEST_4_fortran+c_f.f90
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Executando teste 4 3/3 do compilador gfortran
+  command: gfortran -m64 TEST_4_fortran+c_f.o TEST_4_fortran+c_c.o
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Checando resultado do teste 4
+  command: './a.out'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Testando execução do csh teste 5
+  command: './TEST_csh.csh'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Testando execução do perl teste 6
+  command: './TEST_perl.pl'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Testando execução do sh teste 7
+  command: './TEST_sh.sh'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+
+- name: Criando diretório para compilação do WRF
+  command: mkdir -p {{ HOME }}/build_WRF/libraries
+  become: no
+
+- name: Decompactando o netcdf-4.1.3.tar.gz
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/netcdf-4.1.3.tar.gz'
+    dest: '{{ HOME }}/build_WRF/libraries/'
+    remote_src: yes
+  become: no
+
+- name: Configurando variáveis de ambiente no arquivo ~/.bash_profile
+  lineinfile:
+    backup: yes
+    path: '{{ HOME }}/.bash_profile'
+    insertbefore: '^PATH='
+    line: "{{ item }}"
+    create: yes
+  become: no
+  register: task_result
+  loop:
+    - ' '
+    - '# ----------------- --------------'
+    - '# Variaveis utilizadas pelo WRF'
+    - '# ----------------------- --------'
+    - '  '
+    - 'export DIR={{ HOME }}/build_WRF/libraries'
+    - 'export CC=gcc'
+    - 'export CXX=g++'
+    - 'export FC=gfortran'
+    - 'export FCFLAGS=-m64'
+    - 'export F77=gfortran'
+    - 'export FFLAGS=-m64'
+    - 'export JASPERLIB=$DIR/grib2/lib'
+    - 'export JASPERINC=$DIR/grib2/include'
+    - 'export LDFLAGS=-L$DIR/grib2/lib'
+    - 'export CPPFLAGS=-I$DIR/grib2/include'
+    - 'export NETCDF=$DIR/netcdf'
+    - 'export LD_LIBRARY_PATH=$DIR/grib2/lib'
+    - '   '
+    - '# ------------- ------------------'
+    - '# Variáveis utilizadas pelo grads'
+    - '# --------- ----------------------'
+    - '    '
+    - 'export GADDIR=$DIR/grads-2.2.1/lib'
+    - 'export G2CTL=$DIR/grads-2.2.1/bin'
+    - 'export GASCRP=$DIR/grads-2.2.1/scripts'
+    - '     '
+
+- name: Reiniciando o sistema operacional.
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: task_result is changed
+
+- name: Aguadando o sistema reiniciar
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300
+  when: task_result is changed
+
+- name: Configurando NetCDF
+  shell: './configure --prefix={{ DIR }}/netcdf --disable-dap --disable-netcdf-4 --disable-shared'
+  become: no
+  args:
+    chdir: '{{ DIR }}/netcdf-4.1.3'
+  environment:
+    DIR: '{{ HOME }}/build_WRF/libraries'
+    CC: gcc
+    CXX: g++
+    FC: gfortran
+    FCFLAGS: -m64
+    F77: gfortran
+    FFLAGS: -m64
+
+- name: Compilando o NetCDF versão 4.1.3
+  shell: 'make'
+  become: no
+  args:
+    chdir: '{{ DIR }}/netcdf-4.1.3'
+
+- name: Instalando o NetCDF
+  shell: 'make install'
+  become: no
+  args:
+    chdir: '{{ DIR }}/netcdf-4.1.3'
+
+- name: Configurando a variável PATH com novos caminhos
+  lineinfile:
+    backup: yes
+    path: '{{ HOME }}/.bash_profile'
+    regexp: '^PATH='
+    line: 'PATH=$DIR/openmpi/bin:$DIR/netcdf/bin:$PATH:$HOME/.local/bin:$HOME/bin'
+  become: no
+  register: task_result_path
+  tags:
+    - tests
+
+- name: Reiniciando o sistema operacional.
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: task_result_path is changed
+  tags:
+    - tests
+
+- name: Aguadando o sistema reiniciar
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300
+  when: task_result_path is changed
+  tags:
+    - tests
+
+- name: Decompactando o openmpi-2.1.6.tar.gz
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/openmpi-2.1.6.tar.gz'
+    dest: '{{ HOME }}/build_WRF/libraries/'
+    remote_src: yes
+  become: no
+
+- name: Configurando o OpenMPI versão 2.1.6
+  shell: './configure --prefix={{ DIR }}/openmpi'
+  become: no
+  args:
+    chdir: '{{ DIR }}/openmpi-2.1.6'
+
+- name: Compilando o OpenMPI versão 2.1.6
+  shell: 'make'
+  become: no
+  args:
+    chdir: '{{ DIR }}/openmpi-2.1.6'
+
+- name: Instalando o OpenMPI versão 2.1.6
+  shell: 'make install'
+  become: no
+  args:
+    chdir: '{{ DIR }}/openmpi-2.1.6'
+
+- name: Descompactando o zlib
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/zlib-1.2.7.tar.gz'
+    dest: '{{ HOME }}/build_WRF/libraries/'
+    remote_src: yes
+  become: no
+
+- name: Configurando o zlib
+  shell: './configure --prefix={{ DIR }}/grib2'
+  become: no
+  args:
+    chdir: '{{ DIR }}/zlib-1.2.7'
+
+- name: Compilando o zlib
+  shell: 'make'
+  become: no
+  args:
+    chdir: '{{ DIR }}/zlib-1.2.7'
+
+- name: Instalando o zlib
+  shell: 'make install'
+  become: no
+  args:
+    chdir: '{{ DIR }}/zlib-1.2.7'
+
+- name: Descompactando o libpng
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/libpng-1.2.50.tar.gz'
+    dest: '{{ HOME }}/build_WRF/libraries/'
+    remote_src: yes
+  become: no
+
+- name: Configurando o libpng
+  shell: './configure --prefix={{ DIR }}/grib2'
+  become: no
+  args:
+    chdir: '{{ DIR }}/libpng-1.2.50'
+  environment:
+    LDFLAGS: '-L{{ DIR }}/grib2/lib'
+    CPPFLAGS: '-I{{ DIR }}/grib2/include'
+
+- name: Compilando o libpng
+  shell: 'make'
+  become: no
+  args:
+    chdir: '{{ DIR }}/libpng-1.2.50'
+  environment:
+    LDFLAGS: '-L{{ DIR }}/grib2/lib'
+    CPPFLAGS: '-I{{ DIR }}/grib2/include'
+
+- name: Instalando o libpng
+  shell: 'make install'
+  become: no
+  args:
+    chdir: '{{ DIR }}/libpng-1.2.50'
+  environment:
+    LDFLAGS: '-L{{ DIR }}/grib2/lib'
+    CPPFLAGS: '-I{{ DIR }}/grib2/include'
+
+- name: Descompactando o JasPer
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/jasper-1.900.1.tar.gz'
+    dest: '{{ HOME }}/build_WRF/libraries/'
+    remote_src: yes
+  become: no
+
+- name: Configurando o JasPer
+  shell: './configure --prefix={{ DIR }}/grib2'
+  args:
+    chdir: '{{ DIR }}/jasper-1.900.1'
+  become: no
+
+- name: Compilando o JasPer
+  shell: 'make'
+  become: no
+  args:
+    chdir: '{{ DIR }}/jasper-1.900.1'
+
+- name: Instalando o JasPer
+  shell: 'make install'
+  become: no
+  args:
+    chdir: '{{ DIR }}/jasper-1.900.1'
+
+- name: Transferindo procedimentos de testes para NetCDF/MPI
+  copy:
+    src: Fortran_C_NETCDF_MPI_tests.tar
+    dest: '{{ HOME }}/build_WRF/testes/'
+  become: no
+
+- name: Descompactando procedimentos de testes
+  unarchive:
+    src: '{{ HOME }}/build_WRF/testes/Fortran_C_NETCDF_MPI_tests.tar'
+    dest: '{{ HOME }}/build_WRF/testes/'
+    remote_src: yes
+  become: no
+
+- name: Criando link simbólico do netcdf.inc para o teste
+  file:
+    src: '{{ NETCDF }}/include/netcdf.inc'
+    dest: '{{ HOME }}/build_WRF/testes/netcdf.inc'
+    state: link
+    force: yes
+  become: no
+
+- name: Executando teste1 etapa 1/3 do NetCDF
+  command: gfortran -c 01_fortran+c+netcdf_f.f
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+  become: no
+
+- name: Executando teste1 etapa 2/3 do NetCDF
+  command: gcc -c 01_fortran+c+netcdf_c.c
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+  become: no
+
+- name: Executando teste1 etapa 3/3 do NetCDF
+  command: 'gfortran 01_fortran+c+netcdf_f.o 01_fortran+c+netcdf_c.o -L{{ NETCDF }}/lib -lnetcdff -lnetcdf'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+  become: no
+
+- name: Checando resultado do teste1
+  command: './a.out'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+  become: no
+
+- name: Executando teste2 etapa 1/3 do NetCDF + MPI
+  command: mpif90 -c 02_fortran+c+netcdf+mpi_f.f
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+  become: no
+  environment:
+    PATH: '{{ HOME }}/build_WRF/libraries/openmpi/bin:{{ HOME }}/build_WRF/libraries/netcdf/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:{{ HOME }}/.local/bin:{{ HOME }}/bin'
+
+- name: Executando teste2 etapa 2/3 do NetCDF + MPI
+  command: mpicc -c 02_fortran+c+netcdf+mpi_c.c
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+  become: no
+  environment:
+    PATH: '{{ HOME }}/build_WRF/libraries/openmpi/bin:{{ HOME }}/build_WRF/libraries/netcdf/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:{{ HOME }}/.local/bin:{{ HOME }}/bin'
+
+- name: Executando teste2 etapa 3/3 do NetCDF + MPI
+  command: 'mpif90 02_fortran+c+netcdf+mpi_f.o 02_fortran+c+netcdf+mpi_c.o -L{{ NETCDF }}/lib -lnetcdff -lnetcdf'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+  become: no
+  environment:
+    PATH: '{{ HOME }}/build_WRF/libraries/openmpi/bin:{{ HOME }}/build_WRF/libraries/netcdf/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:{{ HOME }}/.local/bin:{{ HOME }}/bin'
+
+- name: Checando resultado do teste2
+  command: 'mpirun ./a.out'
+  args:
+    chdir: '{{ HOME }}/build_WRF/testes'
+  become: no
+  environment:
+    PATH: '{{ DIR }}/openmpi/bin:{{ DIR }}/netcdf/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:{{ HOME }}/.local/bin:{{ HOME }}/bin'
+
+- name: Descompactando arquivos do WRF
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/WRFV4.0.TAR.gz'
+    dest: '{{ HOME }}/build_WRF/'
+    remote_src: yes
+  become: no
+
+- name: Configurando o WRF
+  expect:
+    command: './configure'
+    responses:
+      (.*)Enter selection \[1-75\](.*): 33
+      (.*)Compile for nesting?(.*): 1
+  args:
+    chdir: '{{ HOME }}/build_WRF/WRF'
+  become: no
+  environment:
+    NETCDF: '{{ NETCDF }}'
+    PATH: '{{ DIR }}/openmpi/bin:{{ DIR }}/netcdf/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:{{ HOME }}/.local/bin:{{ HOME }}/bin'
+
+- name: Compilando o WRF
+  shell: './compile em_real 2>&1 > log.compile'
+  become: no
+  environment:
+    NETCDF: '{{ NETCDF }}'
+    PATH: '{{ DIR }}/openmpi/bin:{{ DIR }}/netcdf/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:{{ HOME }}/.local/bin:{{ HOME }}/bin'
+  args:
+    chdir: '{{ HOME }}/build_WRF/WRF'
+
+- name: Descompactando arquivos do WPS
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/WPSV4.0.TAR.gz'
+    dest: '{{ HOME }}/build_WRF/'
+    remote_src: yes
+  become: no
+
+- name: Configurando o WPS
+  expect:
+    command: './configure'
+    responses:
+      (.*)Enter selection \[1-40\](.*): 1
+  args:
+    chdir: '{{ HOME }}/build_WRF/WPS'
+  become: no
+  environment:
+    JASPERLIB: '{{ DIR }}/grib2/lib'
+    JASPERINC: '{{ DIR }}/grib2/include'
+    NETCDF: '{{ NETCDF }}'
+    PATH: '{{ DIR }}/openmpi/bin:{{ DIR }}/netcdf/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:{{ HOME }}/.local/bin:{{ HOME }}/bin'
+
+- name: Ajustando parâmetro no arquivo configure.wps
+  lineinfile:
+    path: '{{ HOME }}/build_WRF/WPS/configure.wps'
+    regexp: '^                        -L\$\(NETCDF\)/lib -lnetcdff -lnetcdf'
+    line: '                        -L$(NETCDF)/lib -lnetcdff -lnetcdf -lgomp'
+  become: no
+
+- name: Compilando o WPS
+  shell: './compile 2>&1 > log.compile'
+  become: no
+  environment:
+    JASPERLIB: '{{ DIR }}/grib2/lib'
+    JASPERINC: '{{ DIR }}/grib2/include'
+    NETCDF: '{{ NETCDF }}'
+    PATH: '{{ DIR }}/openmpi/bin:{{ DIR }}/netcdf/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:{{ HOME }}/.local/bin:{{ HOME }}/bin'
+  args:
+    chdir: '{{ HOME }}/build_WRF/WPS'
+
+- name: Descompactando e instalando o utilitário grads
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/grads-2.2.1-bin-centos7.4-x86_64.tar.gz'
+    dest: '{{ HOME }}/build_WRF/libraries/'
+    remote_src: yes
+  become: no
+
+- name: Criando o diretório "scripts" na pasta do grads
+  shell: 'mkdir -p {{ HOME }}/build_WRF/libraries/grads-2.2.1/scripts'
+  become: no
+
+...

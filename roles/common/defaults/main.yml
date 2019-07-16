@@ -1,0 +1,13 @@
+---
+# defaults file for common
+USER: yourusername
+PASS: yourPa$$w0rd
+
+
+ansible_user: '{{ USER }}'
+ansible_ssh_pass: '{{ PASS }}'
+
+# Variáveis de ambiente no host remoto
+HOME: '/home/{{ USER }}'
+DIR: '{{ HOME }}/build_WRF/libraries'
+NETCDF: '{{ DIR }}/netcdf'
