@@ -36,7 +36,7 @@ Example Playbook
 Running a Playbook
 ------------------
 
-```shell
+```sh
 $ ansible-playbook -i hosts playbook.yml -K -k -b -v
 ```
 
