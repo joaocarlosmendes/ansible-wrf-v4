@@ -40,6 +40,8 @@ Running a Playbook
 $ ansible-playbook -i hosts playbook.yml -K -k -b -v
 ```
 
+- See [documentation](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html) for Ansible installation 
+
 Tips
 ----
 
