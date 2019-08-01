@@ -40,6 +40,11 @@ Running a Playbook
 $ ansible-playbook -i hosts playbook.yml -K -k -b -v
 ```
 
+Tips
+----
+
+- Do not use the root user, use a regular user and add him as a superuser before running this role.
+
 License
 -------
 
