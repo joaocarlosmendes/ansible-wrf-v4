@@ -1,7 +1,7 @@
 # ansible-wrf-v4
 Automated installation of [WRF V4.0](http://www2.mmm.ucar.edu/wrf/OnLineTutorial/compilation_tutorial.php) on CentOS 7
 
-Role Name
+common
 =========
 
 An Ansible Role that installs WRF V4.0 on Linux CentOS 7
