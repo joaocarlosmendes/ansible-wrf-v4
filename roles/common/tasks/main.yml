@@ -26,6 +26,8 @@
       - gcc-gfortran
       - perl
       - m4
+      - hdf5
+      - libjpeg-turbo
 
 - name: Atualizando o pip
   pip:
@@ -50,6 +52,7 @@
   become: no
   with_items:
     - grads-2.2.1-bin-centos7.4-x86_64.tar.gz
+    - supplibs-centos7.4-x86_64.tar.gz
     - zlib-1.2.7.tar.gz
     - jasper-1.900.1.tar.gz
     - libpng-1.2.50.tar.gz
@@ -57,7 +60,6 @@
     - openmpi-2.1.6.tar.gz
     - WPSV4.0.TAR.gz
     - WRFV4.0.TAR.gz
-    - hdf5-1.10.5.tar.gz
 
 - name: Checando existência do gfortran
   command: 'which gfortran'
@@ -241,7 +243,7 @@
     backup: yes
     path: '{{ HOME }}/.bash_profile'
     regexp: '^PATH='
-    line: 'PATH=$DIR/openmpi/bin:$DIR/netcdf/bin:$PATH:$HOME/.local/bin:$HOME/bin'
+    line: 'PATH=$DIR/openmpi/bin:$DIR/netcdf/bin:$G2CTL:$PATH:$HOME/.local/bin:$HOME/bin'
   become: no
   register: task_result_path
   tags:
@@ -525,6 +527,37 @@
     dest: '{{ HOME }}/build_WRF/libraries/'
     remote_src: yes
   become: no
+
+- name: Descompactando dependências do grads
+  unarchive:
+    src: '{{ HOME }}/arquivos_tar/supplibs-centos7.4-x86_64.tar.gz'
+    dest: '{{ HOME }}/build_WRF/libraries/'
+    remote_src: yes
+  become: no
+
+- name: Instalando dependências do grads 1/3
+  file:
+    src: '{{ HOME }}/arquivos_tar/supplibs/lib/libnetcdf.so.7'
+    dest: '/usr/lib64/libnetcdf.so.7'
+    state: link
+    force: yes
+  become: yes
+
+- name: Instalando dependências do grads 2/3
+  file:
+    src: '{{ HOME }}/arquivos_tar/supplibs/lib/libtiff.so.3'
+    dest: '/usr/lib64/libtiff.so.3'
+    state: link
+    force: yes
+  become: yes
+
+- name: Instalando dependências do grads 3/3
+  file:
+    src: '{{ HOME }}/arquivos_tar/supplibs/lib/libgeotiff.so'
+    dest: '/usr/lib64/libgeotiff.so'
+    state: link
+    force: yes
+  become: yes
 
 - name: Criando o diretório "scripts" na pasta do grads
   shell: 'mkdir -p {{ HOME }}/build_WRF/libraries/grads-2.2.1/scripts'
