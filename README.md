@@ -1,7 +1,7 @@
 # ansible-wrf-v4
 Automated installation of [WRF V4.0](http://www2.mmm.ucar.edu/wrf/OnLineTutorial/compilation_tutorial.php) on CentOS 7
 
-Role Name
+common
 =========
 
 An Ansible Role that installs WRF V4.0 on Linux CentOS 7
@@ -39,6 +39,13 @@ Running a Playbook
 ```sh
 $ ansible-playbook -i hosts playbook.yml -K -k -b -v
 ```
+
+- See [documentation](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html) for Ansible installation 
+
+Tips
+----
+
+- Do not use the root user, use a regular user and add him as a superuser before running this role.
 
 License
 -------
